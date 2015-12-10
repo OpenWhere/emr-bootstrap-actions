@@ -27,9 +27,8 @@ USER=accumulo
 USERPW=secret
 ACCUMULO_INSTANCE=instance
 HOMEDIR=/home/hadoop
-ZOOKEEPRERV=3.4.6
+ZOOKEEPRERV=3.4.7
 ZOO_LOG_DIR=/mnt/var/log/zookeeper
-EMR_BUCKET=elasticmapreduce.bootstrapactions
 ACCUMULOV=1.6.1
 ACCUMULO_TSERVER_OPTS=1GB
 
@@ -38,14 +37,13 @@ ACCUMULO_TSERVER_OPTS=1GB
 sudo adduser $USER
 sudo sh -c "echo '$USERPW' | passwd $USER --stdin"
 
-
+mkdir $HOMEDIR/.versions
 cd $HOMEDIR/.versions
 
 
 #Installing Zookeeper
 echo "Downloading Zookeeper"
-wget http://apache.mirrors.tds.net/zookeeper/stable/zookeeper-${ZOOKEEPRERV}.tar.gz
-tar xzf zookeeper*tar.gz
+curl -s http://apache.arvixe.com/zookeeper/zookeeper/zookeeper-$ZOOKEEPRERV/zookeeper-$ZOOKEEPRERV.tar.gz | tar -xz
 ln -sf $HOMEDIR/.versions/zookeeper-${ZOOKEEPRERV}  $HOMEDIR/zookeeper
 
 #Run only on master
@@ -69,9 +67,7 @@ fi
 #Install accumulo
 
 cd $HOMEDIR/.versions
-wget http://${EMR_BUCKET}.s3.amazonaws.com/accumulo/${ACCUMULOV}/accumulo-${ACCUMULOV}-bin.tar.gz
-
-tar -xvzf accumulo-${ACCUMULOV}-bin.tar.gz
+curl -s http://archive.apache.org/dist/accumulo/$ACCUMULOV/accumulo-$ACCUMULOV-bin.tar.gz | tar -xz
 ln -sf $HOMEDIR/.versions/accumulo-$ACCUMULOV $HOMEDIR/accumulo
 
 sudo yum install -y expect
