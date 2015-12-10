@@ -43,7 +43,7 @@ cd $HOMEDIR/.versions
 
 #Installing Zookeeper
 echo "Downloading Zookeeper"
-curl -s http://apache.arvixe.com/zookeeper/zookeeper/zookeeper-$ZOOKEEPRERV/zookeeper-$ZOOKEEPRERV.tar.gz | tar -xz
+curl -s http://apache.arvixe.com/zookeeper/zookeeper-$ZOOKEEPRERV/zookeeper-$ZOOKEEPRERV.tar.gz | tar -xz
 ln -sf $HOMEDIR/.versions/zookeeper-${ZOOKEEPRERV}  $HOMEDIR/zookeeper
 
 #Run only on master
