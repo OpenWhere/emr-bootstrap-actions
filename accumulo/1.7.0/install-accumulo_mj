@@ -13,9 +13,7 @@ if [ -n "$NETWORK" ]; then
 
 echo "Discovered network: $NETWORK"
 
-		
 if [ ! -d "/home/hadoop/accumulo" ]; then
-
 
 #Change swappiness and IPV6 disable
 echo -e "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee --append /etc/sysctl.conf
@@ -35,7 +33,7 @@ ACCUMULO_INSTANCE=instance
 HOMEDIR=/home/hadoop
 ZOOKEEPRERV=3.4.7
 ZOO_LOG_DIR=/mnt/var/log/zookeeper
-ACCUMULOV=1.6.1
+ACCUMULOV=1.7.0
 ACCUMULO_TSERVER_OPTS=1GB
 
 
@@ -61,7 +59,6 @@ ln -sf $HOMEDIR/.versions/accumulo-$ACCUMULOV $HOMEDIR/accumulo
 
 sudo yum install -y expect
 
-
 cp $HOMEDIR/accumulo/conf/examples/${ACCUMULO_TSERVER_OPTS}/standalone/* $HOMEDIR/accumulo/conf/
 
 #Get Zookeeper IP address
@@ -80,7 +77,6 @@ echo "Setting Zookeeper: $ZK_IPADDR, instance volume: $MASTER"
 sed -i "s/<value><\/value>/<value>hdfs:\/\/${MASTER}:8020\/accumulo<\/value>/; s/<value>localhost:2181<\/value>/<value>${ZK_IPADDR}:2181<\/value>/; s/DEFAULT/${USERPW}/" $HOMEDIR/accumulo/conf/accumulo-site.xml
 sed -i "s/<\!-- HDP 2.0 requirements --><\!--/<\!-- HDP 2.0 requirements -->/; s/--><\!-- End HDP 2.0 requirements -->/<\!-- End HDP 2.0 requirements -->/" $HOMEDIR/accumulo/conf/accumulo-site.xml
 
-
 cat >> $HOMEDIR/accumulo/conf/accumulo-env.sh  << EOF
 export ACCUMULO_HOME=/home/hadoop/accumulo
 export HADOOP_HOME=/usr/lib/hadoop
@@ -95,7 +91,6 @@ hostname > $HOMEDIR/accumulo/conf/monitor
 hostname > $HOMEDIR/accumulo/conf/gc
 hostname > $HOMEDIR/accumulo/conf/tracers
 hostname > $HOMEDIR/accumulo/conf/gc
-
 
 #Run on master/slave based on configuration
 if grep isMaster /mnt/var/lib/info/instance.json | grep true;
@@ -115,6 +110,7 @@ then
 
 	#log some vars
 	echo "HADOOP_HOME=$HADOOP_HOME, HADOOP_CONF_DIR=$HADOOP_CONF_DIR, HADOOP_PREFIX=$HADOOP_PREFIX"
+	java -version
 	#Create Accumulo HDFS location
 	/usr/bin/hadoop fs -mkdir /accumulo
 	/usr/bin/hadoop fs -chown -R $USER:$USER /accumulo
@@ -135,7 +131,6 @@ else
 	echo $MASTER > $HOMEDIR/accumulo/conf/slaves
 	hdfs dfsadmin -report | grep Hostname: | cut -d \: -f 2 | cut -d \. -f 1 | sed -e "s/^[ \t]*//" >> $HOMEDIR/accumulo/conf/slaves
 	echo $MASTER > $HOMEDIR/accumulo/conf/masters
-fi
 fi
 
 sudo -u $USER  $HOMEDIR/accumulo/bin/start-here.sh
