@@ -13,9 +13,7 @@ if [ -n "$NETWORK" ]; then
 
 echo "Discovered network: $NETWORK"
 
-		
 if [ ! -d "/home/hadoop/accumulo" ]; then
-
 
 #Change swappiness and IPV6 disable
 echo -e "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee --append /etc/sysctl.conf
@@ -61,7 +59,6 @@ ln -sf $HOMEDIR/.versions/accumulo-$ACCUMULOV $HOMEDIR/accumulo
 
 sudo yum install -y expect
 
-
 cp $HOMEDIR/accumulo/conf/examples/${ACCUMULO_TSERVER_OPTS}/standalone/* $HOMEDIR/accumulo/conf/
 
 #Get Zookeeper IP address
@@ -80,7 +77,6 @@ echo "Setting Zookeeper: $ZK_IPADDR, instance volume: $MASTER"
 sed -i "s/<value><\/value>/<value>hdfs:\/\/${MASTER}:8020\/accumulo<\/value>/; s/<value>localhost:2181<\/value>/<value>${ZK_IPADDR}:2181<\/value>/; s/DEFAULT/${USERPW}/" $HOMEDIR/accumulo/conf/accumulo-site.xml
 sed -i "s/<\!-- HDP 2.0 requirements --><\!--/<\!-- HDP 2.0 requirements -->/; s/--><\!-- End HDP 2.0 requirements -->/<\!-- End HDP 2.0 requirements -->/" $HOMEDIR/accumulo/conf/accumulo-site.xml
 
-
 cat >> $HOMEDIR/accumulo/conf/accumulo-env.sh  << EOF
 export ACCUMULO_HOME=/home/hadoop/accumulo
 export HADOOP_HOME=/usr/lib/hadoop
@@ -95,7 +91,6 @@ hostname > $HOMEDIR/accumulo/conf/monitor
 hostname > $HOMEDIR/accumulo/conf/gc
 hostname > $HOMEDIR/accumulo/conf/tracers
 hostname > $HOMEDIR/accumulo/conf/gc
-
 
 #Run on master/slave based on configuration
 if grep isMaster /mnt/var/lib/info/instance.json | grep true;
@@ -115,6 +110,7 @@ then
 
 	#log some vars
 	echo "HADOOP_HOME=$HADOOP_HOME, HADOOP_CONF_DIR=$HADOOP_CONF_DIR, HADOOP_PREFIX=$HADOOP_PREFIX"
+	java -version
 	#Create Accumulo HDFS location
 	/usr/bin/hadoop fs -mkdir /accumulo
 	/usr/bin/hadoop fs -chown -R $USER:$USER /accumulo
@@ -126,8 +122,25 @@ then
 
 	echo "Attempting to initialize Accumulo"
 
-	sudo -u $USER $HOMEDIR/accumulo/bin/accumulo init --clear-instance-name --instance-name $ACCUMULO_INSTANCE --password $USERPW	
+	sudo -u $USER $HOMEDIR/accumulo/bin/accumulo init --clear-instance-name --instance-name $ACCUMULO_INSTANCE --password $USERPW
+
+    MY_IP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
+    ROOT_IP=`echo "$MY_IP" | cut -d \. -f 1,2`
+    CONSUL_IP="$ROOT_IP.2.4"
+    rm -f /home/hadoop/service1
+
+cat > /home/hadoop/service1 << 'EOFS1'
+   { "Node": "emrmaster",
+     "Address":"MY_IP",
+      "Service": {
+        "Service": "accumulo",
+        "Port": 50095 } }
+EOFS1
+    sed -i "s/MY_IP/${MY_IP}/" /home/hadoop/service1
+    curl -XPUT $CONSUL_IP:8500/v1/catalog/register -d @/home/hadoop/service1
 else
+    # Allow time (3 minutes) for Accumulo to be initialized
+    sleep 180
 	mkdir -p /mnt/var/log/accumulo/logs/
 	sudo chown $USER:$USER -R /mnt/var/log/accumulo
     MASTER=`grep -i -A 1 "yarn.resourcemanager.address<" /usr/lib/hadoop/etc/hadoop/yarn-site.xml | grep "<value>" | cut -d \: -f 1 | cut -d \> -f 2 | cut -d \. -f 1`
@@ -136,7 +149,6 @@ else
 	hdfs dfsadmin -report | grep Hostname: | cut -d \: -f 2 | cut -d \. -f 1 | sed -e "s/^[ \t]*//" >> $HOMEDIR/accumulo/conf/slaves
 	echo $MASTER > $HOMEDIR/accumulo/conf/masters
 fi
-fi
 
 sudo -u $USER  $HOMEDIR/accumulo/bin/start-here.sh
 sudo sed -i 's/.*accumulo.*//' /etc/crontab
@@ -144,7 +156,6 @@ fi
 fi
 fi
 EOF2
-
 
 
 sudo sh -c "echo '*/2     * * * *   hadoop     bash /home/hadoop/accumulo.sh > /home/hadoop/cron.log 2>&1 ' >> /etc/crontab"
