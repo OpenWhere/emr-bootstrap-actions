@@ -125,6 +125,7 @@ then
 	sudo -u $USER $HOMEDIR/accumulo/bin/accumulo init --clear-instance-name --instance-name $ACCUMULO_INSTANCE --password $USERPW
 
     MY_IP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
+    MY_HOSTNAME=`curl http://169.254.169.254/latest/meta-data/hostname`
     ROOT_IP=`echo "$MY_IP" | cut -d \. -f 1,2`
     CONSUL_IP="$ROOT_IP.2.4"
     rm -f /home/hadoop/service1
@@ -134,9 +135,14 @@ cat > /home/hadoop/service1 << 'EOFS1'
      "Address":"MY_IP",
       "Service": {
         "Service": "accumulo",
-        "Port": 50095 } }
+        "Port": 50095,
+        "Tags": [
+            "master",
+            "HOSTNAME"
+        ]
+        } }
 EOFS1
-    sed -i "s/MY_IP/${MY_IP}/" /home/hadoop/service1
+    sed -i "s/MY_IP/${MY_IP}/; s/HOSTNAME/${MY_HOSTNAME}/" /home/hadoop/service1
     curl -XPUT $CONSUL_IP:8500/v1/catalog/register -d @/home/hadoop/service1
 else
     # Allow time (3 minutes) for Accumulo to be initialized
