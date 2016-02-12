@@ -3,6 +3,34 @@ set -x -e
 
 cat > /home/hadoop/migrate.sh << 'EOF2'
 
+function migrate {
+    DIRNAME="$1"
+    RESOLUTION="$2"
+    CATALOGHOST="$3"
+
+hadoop fs -mkdir -p /sources/$DIRNAME
+mkdir /home/hadoop/migrated/$DIRNAME
+rm -f /home/hadoop/$DIRNAME
+cat > /home/hadoop/$DIRNAME << 'EOFS1'
+   { "type":"sources",
+     "uri":"hdfs://sources/DIRNAME/FILENAME",
+     "location":"HDFS",
+     "resolution":"RESOLUTION",
+     "filename":"FILENAME",
+     "directory":"DIRNAME"}
+EOFS1
+for f in $(aws s3 ls net-openwhere-surge-resource-demsrcs/$DIRNAME/sources/ | tr -s ' ' | cut -d " " -f 4)
+do
+      aws s3 cp s3://net-openwhere-surge-resource-demsrcs/$DIRNAME/sources/$f /tmp/tif-file
+      hadoop fs -put /tmp/tif-file /sources/$DIRNAME/$f
+      rm -f /tmp/tif-file
+      touch /home/hadoop/migrated/$DIRNAME/$f
+      rm -f /home/hadoop/mservice1
+      cat /home/hadoop/$DIRNAME | sed s/FILENAME/$f/g | sed s/DIRNAME/$DIRNAME/g | sed s/RESOLUTION/$RESOLUTION/g > /home/hadoop/mservice1
+      curl -XPOST "http://$CATALOGHOST:8080/api/catalog/document" -d @/home/hadoop/mservice1 -H "Content-Type:application/json"
+done
+}
+
 if [ ! -d "/home/hadoop/migrated" ]; then
 
 NETWORK=`hdfs dfsadmin -report | grep Hostname: | cut -d \: -f 2 | cut -d \. -f 1 | sed -e "s/^[ \t]*//"`
@@ -18,58 +46,16 @@ then
 
 if [ -f "/home/hadoop/accumulo/.initialized" ]; then
 
+# prevent future runs by cron from doing anything
 mkdir /home/hadoop/migrated
-mkdir /home/hadoop/migrated/va-1m
 
 # wait 5 minutes for catalog to come up, it notices accumulo complete as well
 sleep 300
 
 INDEX=`curl -XGET "consul.surge.openwhere.net:8500/v1/catalog/service/catalog" | cut -d "," -f 2 | cut -d ":" -f 2 | sed 's/\"//g'`
 
-hadoop fs -mkdir -p /sources/va-1m
-rm -f /home/hadoop/va-1m
-cat > /home/hadoop/va-1m << 'EOFS1'
-   { "type":"sources",
-     "uri":"hdfs://sources/va-1m/FILENAME",
-     "location":"HDFS",
-     "resolution":"1m",
-     "filename":"FILENAME",
-     "directory":"va-1m"}
-EOFS1
-
-for f in $(aws s3 ls net-openwhere-surge-resource-demsrcs/va-1m/sources/ | sed 's/    / /g' | cut -d " " -f 4)
-do
-      aws s3 cp s3://net-openwhere-surge-resource-demsrcs/va-1m/sources/$f /tmp/tif-file
-      hadoop fs -put /tmp/tif-file /sources/va-1m/$f
-      rm -f /tmp/tif-file
-      touch /home/hadoop/migrated/va-1m/$f
-      rm -f /home/hadoop/mservice1
-      cat /home/hadoop/va-1m | sed s/FILENAME/$f/g > /home/hadoop/mservice1
-      curl -XPOST "http://$INDEX:8080/api/catalog/document" -d @/home/hadoop/mservice1 -H "Content-Type:application/json"
-done
-
-mkdir /home/hadoop/migrated/aster-30m
-hadoop fs -mkdir -p /sources/aster-30m
-rm -f /home/hadoop/aster-30m
-cat > /home/hadoop/aster-30m << 'EOFS2'
-   { "type":"sources",
-     "uri":"hdfs://sources/aster-30m/FILENAME",
-     "location":"HDFS",
-     "resolution":"30m",
-     "filename":"FILENAME",
-     "directory":"aster-30m"}
-EOFS2
-
-for f in $(aws s3 ls net-openwhere-surge-resource-demsrcs/aster-30m/sources/ | sed 's/   / /g' | cut -d " " -f 4)
-do
-      aws s3 cp s3://net-openwhere-surge-resource-demsrcs/aster-30m/sources/$f /tmp/tif-file
-      hadoop fs -put /tmp/tif-file /sources/aster-30m/$f
-      rm -f /tmp/tif-file
-      touch /home/hadoop/migrated/aster-30m/$f
-      rm -f /home/hadoop/mservice1
-      cat /home/hadoop/aster-30m | sed s/FILENAME/$f/g > /home/hadoop/mservice1
-      curl -XPOST "http://$INDEX:8080/api/catalog/document" -d @/home/hadoop/mservice1 -H "Content-Type:application/json"
-done
+migrate "va-1m" "1m" "$INDEX"
+migrate "aster-30m" "30m" "$INDEX"
 
 cat > /home/hadoop/hdfs-done << 'EOFS3'
    { "type":"hdfsload",
