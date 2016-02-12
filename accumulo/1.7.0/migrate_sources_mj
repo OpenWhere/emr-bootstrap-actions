@@ -7,26 +7,27 @@ function migrate {
     DIRNAME="$1"
     RESOLUTION="$2"
     CATALOGHOST="$3"
+    TYPE="$4"
 
 hadoop fs -mkdir -p /sources/$DIRNAME
 mkdir /home/hadoop/migrated/$DIRNAME
 rm -f /home/hadoop/$DIRNAME
 cat > /home/hadoop/$DIRNAME << 'EOFS1'
-   { "type":"sources",
-     "uri":"hdfs://sources/DIRNAME/FILENAME",
+   { "type":"TYPE",
+     "uri":"hdfs://TYPE/DIRNAME/FILENAME",
      "location":"HDFS",
      "resolution":"RESOLUTION",
      "filename":"FILENAME",
      "directory":"DIRNAME"}
 EOFS1
-for f in $(aws s3 ls net-openwhere-surge-resource-demsrcs/$DIRNAME/sources/ | tr -s ' ' | cut -d " " -f 4)
+for f in $(aws s3 ls net-openwhere-surge-resource-demsrcs/$DIRNAME/$TYPE/ | tr -s ' ' | cut -d " " -f 4)
 do
-      aws s3 cp s3://net-openwhere-surge-resource-demsrcs/$DIRNAME/sources/$f /tmp/tif-file
-      hadoop fs -put /tmp/tif-file /sources/$DIRNAME/$f
+      aws s3 cp s3://net-openwhere-surge-resource-demsrcs/$DIRNAME/$TYPE/$f /tmp/tif-file
+      hadoop fs -put /tmp/tif-file /$TYPE/$DIRNAME/$f
       rm -f /tmp/tif-file
       touch /home/hadoop/migrated/$DIRNAME/$f
       rm -f /home/hadoop/mservice1
-      cat /home/hadoop/$DIRNAME | sed s/FILENAME/$f/g | sed s/DIRNAME/$DIRNAME/g | sed s/RESOLUTION/$RESOLUTION/g > /home/hadoop/mservice1
+      cat /home/hadoop/$DIRNAME | sed s/FILENAME/$f/g | sed s/DIRNAME/$DIRNAME/g | sed s/TYPE/$TYPE/g | sed s/RESOLUTION/$RESOLUTION/g > /home/hadoop/mservice1
       curl -XPOST "http://$CATALOGHOST:8080/api/catalog/document" -d @/home/hadoop/mservice1 -H "Content-Type:application/json"
 done
 }
@@ -54,8 +55,8 @@ sleep 300
 
 INDEX=`curl -XGET "consul.surge.openwhere.net:8500/v1/catalog/service/catalog" | cut -d "," -f 2 | cut -d ":" -f 2 | sed 's/\"//g'`
 
-migrate "va-1m" "1m" "$INDEX"
-migrate "aster-30m" "30m" "$INDEX"
+migrate "va-1m" "1m" "$INDEX" "sources"
+migrate "aster-30m" "30m" "$INDEX" "sources"
 
 cat > /home/hadoop/hdfs-done << 'EOFS3'
    { "type":"hdfsload",
