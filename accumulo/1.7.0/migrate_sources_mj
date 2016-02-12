@@ -57,6 +57,9 @@ INDEX=`curl -XGET "consul.surge.openwhere.net:8500/v1/catalog/service/catalog" |
 
 migrate "va-1m" "1m" "$INDEX" "sources"
 migrate "aster-30m" "30m" "$INDEX" "sources"
+migrate "50cm" "50cm" "$INDEX" "bareearth"
+migrate "50cm" "50cm" "$INDEX" "firstreturn"
+migrate "50cm" "50cm" "$INDEX" "noobs"
 
 cat > /home/hadoop/hdfs-done << 'EOFS3'
    { "type":"hdfsload",
