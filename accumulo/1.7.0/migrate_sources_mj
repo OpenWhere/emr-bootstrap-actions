@@ -9,7 +9,7 @@ function migrate {
     CATALOGHOST="$3"
     TYPE="$4"
 
-hadoop fs -mkdir -p /sources/$DIRNAME
+hadoop fs -mkdir -p /$TYPE/$DIRNAME
 mkdir /home/hadoop/migrated/$DIRNAME
 rm -f /home/hadoop/$DIRNAME
 cat > /home/hadoop/$DIRNAME << 'EOFS1'
